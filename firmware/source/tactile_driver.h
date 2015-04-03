@@ -61,13 +61,17 @@ void checkTactileBuffer();
 void sendCTS();
 int tactileReturnFrame(tactileFrame_t* dst);
 void calcForces(tactileFrame_t* frame, tactileForces* F);
-
+void tactilePID(tactileForces* F);
+int setLegFreqs(int numfreqs, int* freq);
 
 //#ifdef	__cplusplus
 //extern "C" {
 //#endif
 
-
+typedef enum {
+    ABC = 0,
+    ABCD
+} testenum;
 
 
 //#ifdef	__cplusplus

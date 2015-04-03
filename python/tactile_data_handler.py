@@ -44,6 +44,10 @@ def handlePacket(src_addr, data):
         for i in range((payload_length-2)/2):
             print str(i)+"\t"+str(temp[i*2+4]+temp[i*2+5]*256)
 
+    if packet_type == 'Y':
+        temp = map(ord,data)
+        print "val =",temp[2]+temp[3]*256
+
     if packet_type == 'F':
         forces = unpack('<6f', pack('24c',*data[2:]))
         print "\nforces:",forces

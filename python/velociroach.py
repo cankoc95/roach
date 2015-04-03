@@ -144,8 +144,12 @@ class Velociroach:
         
         deltaConv = 0x4000 # TODO: this needs to be clarified (ronf, dhaldane, pullin)
         
-        lastLeftDelta = 1-sum(gaitConfig.deltasLeft) #TODO: change this to explicit entry, with a normalization here
-        lastRightDelta = 1-sum(gaitConfig.deltasRight)
+        if sum(gaitConfig.deltasLeft) < 0:
+            lastLeftDelta = -1-sum(gaitConfig.deltasLeft)
+            lastRightDelta = -1-sum(gaitConfig.deltasRight)
+        else:
+            lastLeftDelta = 1-sum(gaitConfig.deltasLeft) #TODO: change this to explicit entry, with a normalization here
+            lastRightDelta = 1-sum(gaitConfig.deltasRight)
         
         temp = [int(periodLeft), int(gaitConfig.deltasLeft[0]*deltaConv), int(gaitConfig.deltasLeft[1]*deltaConv),
                 int(gaitConfig.deltasLeft[2]*deltaConv), int(lastLeftDelta*deltaConv) , 0, \
@@ -336,6 +340,8 @@ class Velociroach:
         time.sleep(duration + 1)
 
     def startScan(self):
+        self.clAnnounce()
+        print "Starting tactile scan."
         self.tx(0, command.TACTILE, 'E')
 
     def stopScan(self):
@@ -367,11 +373,11 @@ class Velociroach:
     def sendX(self, c,d):
         self.tx(0, command.TACTILE, 'X' + chr(c)+chr(d))
 
-    def sendY(self, c):
-        self.tx(0, command.TACTILE, 'Y' + chr(c))
+    def sendY(self, c,d):
+        self.tx(0, command.TACTILE, 'Y' + pack('<h',c)+pack('<h',d))
 
-    def sendZ(self):
-        self.tx(0, command.TACTILE, 'Z')
+    def sendZ(self, pwm):
+        self.tx(0, command.TACTILE, 'Z' + pack('<h',pwm))
     
         
 ########## Helper functions #################

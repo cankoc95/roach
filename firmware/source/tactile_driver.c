@@ -7,6 +7,7 @@
 #include "sclock.h"
 #include "timer.h"
 #include "dfmem.h"
+#include "pid-ip2.5.h"
 #include <string.h>
 
 #if defined(__TACTILE_OVER_UART)
@@ -199,22 +200,43 @@ void handleSkinRequest(unsigned char length, unsigned char *frame, unsigned int 
             rx_idx = TACTILE_RX_IDLE;
             break;
         case 'Y': //write N to dfmem
-            dfmemGetGeometryParams(&mem_geo);
+            /*dfmemGetGeometryParams(&mem_geo);
             int N_pages = (sizeof(N)/mem_geo.bytes_per_page) + 1; //how many pages needed to hold N
             //for (i = N_pages; i > 0; i--) {
             //    dfmemWrite(N + mem_geo.bytes_per_page*(N_pages-i),i > 1 ? mem_geo.bytes_per_page : sizeof(N)-mem_geo.bytes_per_page*(N_pages-1) ,mem_geo.max_pages-i,0,0);
             //}
-            dfmemWrite(N,sizeof(N),mem_geo.max_pages-1,0,0);
+            dfmemWrite(N,sizeof(N),mem_geo.max_pages-1,0,0);*/
+            Nop();/*
+            unsigned int ams = amsEncoderGetPos(frame[1]);
+            unsigned char pkt[4];
+            pkt[0] = 'Y';
+            pkt[1] = 2;
+            pkt[2] = ams;
+            pkt[3] = ams>>8;
+            radioSendData(tactile_src_addr, 0, CMD_TACTILE, sizeof(pkt), pkt, 0);
+            */
             rx_idx = TACTILE_RX_IDLE;
+            int freq[2];
+            freq[0] = (int)frame[1]+((int)frame[2]<<8);
+            freq[1] = (int)frame[3]+((int)frame[4]<<8);
+            setLegFreqs(2,freq);
+
             break;
+
         case 'Z': //read N from dfmem
+            /*
             dfmemGetGeometryParams(&mem_geo);
             int N_pages1 = (sizeof(N)/mem_geo.bytes_per_page) + 1; //how many pages needed to hold N
             //for (i = N_pages1; i > 0; i--) {
             //    dfmemRead(mem_geo.max_pages-i, 0, i > 1 ? mem_geo.bytes_per_page : sizeof(N)-mem_geo.bytes_per_page*(N_pages1-1), N + mem_geo.bytes_per_page*(N_pages1-i));
             //}
             dfmemRead(mem_geo.max_pages-1, 0, sizeof(N), N);
+            */
+            DisableIntT1;
             rx_idx = TACTILE_RX_IDLE;
+            int pwm = frame[1]+(frame[2]<<8);
+            tiHSetDC(1,pwm);
+            
             break;
         default:
             sendTactileCommand(length,frame);
@@ -269,6 +291,7 @@ void checkTactileBuffer(){
                 fullFrame.frame[i] = ((unsigned int)(fullbuffer[i*2+2])) + (((unsigned int)(fullbuffer[i*2+3]))<<8);
             }
             calcForces(&fullFrame, &forces);
+            tactilePID(&forces);
 
             if (0) {
                 //send back force data here
@@ -320,6 +343,22 @@ void calcForces(tactileFrame_t* sensor, tactileForces* forces){
     Nop();
 }
 
+void tactilePID(tactileForces* F) {
+    Nop();
+    float FxThreshForward = 0.6;
+    float FxThreshBack = -0.6;
+    int freq[2];
+    if (F->Fx < FxThreshBack) {
+        freq[0] = -1000;
+        freq[1] = -1000;
+        setLegFreqs(2,freq);
+    } else if (F->Fx > FxThreshForward) {
+        freq[0] = 1000;
+        freq[1] = 1000;
+        setLegFreqs(2,freq);
+    }
+}
+
 void setRXFlag(){
     rxflag = 0x01;
 }
@@ -345,6 +384,44 @@ int tactileReturnFrame(tactileFrame_t* dst){
     } else {
         return 1;
     }
+}
+
+int setLegFreqs(int numfreqs, int* freq) {
+    //freq is in milli-Hz
+    int i, j;
+    int interval[NUM_PIDS][NUM_VELS], delta[NUM_PIDS][NUM_VELS], vel[NUM_PIDS][NUM_VELS], period[NUM_PIDS];
+    int setdelta = 0x4000;
+    int onceFlag = 0;
+    for (i = 0; i < numfreqs; i++) {
+        //upper bound
+        int upperbound = 8000; //don't want to go above 8Hz
+        if (freq[i] > upperbound) {
+            freq[i] = upperbound;
+        } else if (freq[i] < -upperbound) {
+            freq[i] = -upperbound;
+        } else if (freq[i] < 31 && freq[i] > -31) { //min value 31 because 1000000/30 > 2^15
+            if (freq[i] >= 0) {
+                freq[i] = 31;
+            } else {
+                freq[i] = -31;
+            }
+        }
+        period[i] = 1000000/freq[i]; //convert to ms
+        for (j = 0; j < NUM_VELS; j++) {
+            interval[i][j] = period[i]/NUM_VELS;
+            delta[i][j] = setdelta;
+            vel[i][j] = ((long)delta[i][j])*freq[i]*NUM_VELS/1000000;
+            if (period[i] < 0) {
+                //interval must always be positive
+                //flip delta if negative frequency
+                //vel will already be negative
+                interval[i][j] = -interval[i][j];
+                delta[i][j] = -delta[i][j];
+            }
+        }
+        setPIDVelProfile(i, interval[i], delta[i], vel[i], onceFlag);
+    }
+    return 0;
 }
 
 //read data from the UART, and fill each byte into the buffer
