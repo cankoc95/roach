@@ -39,7 +39,7 @@
 #define FULLTHROT 2*HALFTHROT
 // MAXTHROT has to allow enough time at end of PWM for back emf measurement
 // was 3976
-#define MAXTHROT 3800
+#define MAXTHROT 3000//3800
 
 #define ABS(my_val) ((my_val) < 0) ? -(my_val) : (my_val)
 
