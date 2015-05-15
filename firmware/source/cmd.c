@@ -289,11 +289,14 @@ unsigned char cmdPIDStartMotors(unsigned char type, unsigned char status, unsign
     pidObjs[0].timeFlag = 0;
     pidObjs[1].timeFlag = 0;
     pidSetInput(0, 0);
-    pidObjs[0].p_input = pidObjs[0].p_state;
+    //pidObjs[0].p_input = pidObjs[0].p_state;
+    checkSwapBuff(0);
     pidOn(0);
     pidSetInput(1, 0);
-    pidObjs[1].p_input = pidObjs[1].p_state;
+    //pidObjs[1].p_input = pidObjs[1].p_state;
+    checkSwapBuff(1);
     pidOn(1);
+    pidObjs[0].mode = 0;
     return 1;
 }
 

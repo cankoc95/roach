@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-authors: apullin
+authors: jgoldberg and apullin
 
 This script will run an experiment with one or several Velociroach robots.
 
@@ -10,6 +10,7 @@ The main function will send all the setup parameters to the robots, execute defi
 from lib import command
 import time,sys,os,traceback
 import serial
+import thread
 
 # Path to imageproc-settings repo must be added
 sys.path.append(os.path.dirname("../../imageproc-settings/"))
@@ -17,6 +18,7 @@ sys.path.append(os.path.dirname("../imageproc-settings/"))
 import shared_multi as shared
 
 from velociroach import *
+import skinvisualizer4
 
 ####### Wait at exit? #######
 EXIT_WAIT   = False
@@ -25,8 +27,7 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x30\x02', xb)
-    #R1 = Velociroach('\x20\x52', xb) #apullin dst addr
-    R1.SAVE_DATA = True
+    R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -51,11 +52,10 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [1800,100,100,0,0, 1800,100,100,0,0]
-    #motorgains = [1800,100,200,0,200, 1800,100,200,0,200]
+    motorgains = [1800,100,200,0,200, 1800,100,200,0,200]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
-    simpleAltTripod = GaitConfig(motorgains, rightFreq=10, leftFreq=10) # Parameters can be passed into object upon construction, as done here.
+    simpleAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2) # Parameters can be passed into object upon construction, as done here.
     simpleAltTripod.phase = PHASE_180_DEG                             # Or set individually, as here
     simpleAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     simpleAltTripod.deltasRight = [0.25, 0.25, 0.25]
@@ -65,7 +65,7 @@ def main():
     R1.setGait(simpleAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 12000 #ms #65000
+    EXPERIMENT_RUN_TIME_MS     = 3000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 100  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
     
@@ -83,38 +83,84 @@ def main():
     print "  ***************************"
     raw_input("  Press ENTER to start run ...")
     print ""
-    R1.skinStream(0)
-    time.sleep(0.5)
-    R1.startScan()
-    time.sleep(0.5)
+
+    # Send tactile commands here
+    R1.getSkinSize()
+    time.sleep(.5)
+    #R1.testFrame()
+    #time.sleep(.5)
+
     # Initiate telemetry recording; the robot will begin recording immediately when cmd is received.
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             r.startTelemetrySave()
+            #time.sleep(0.1)
+            #r.startScan()
     
     # Sleep for a lead-in time before any motion commands
+    
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
-    time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
-    #R1.zeroPosition()
-    #raw_input("hit enter")
+    #R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
+    #time.sleep(.001)
+    R1.startScan()
+    raw_input()
+    '''
+    R1.RECORDSHELL = True
+    time.sleep(10)
+    R1.RECORDSHELL = False
+    R1.stopScan()
+    time.sleep(.5)
+    R1.stopScan()
+    time.sleep(.5)
+    R1.stopScan()
+    time.sleep(.5)
+    #raw_input("")
+    #thread.start_new_thread(skinvisualizer4.main, ())
+    raw_input("stopped")
+    return
+    R1.RECORDSHELL = True'''
+    #time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     #R1.startRun()
     #raw_input("hit enter")
     #R1.stopRun()
-    #while(True):
-    #    R1.zeroPosition()
-    #    raw_input("hit enter")
-    
-    ######## End of motion commands   ########
-    
-    # Sleep for a lead-out time after any motion
-    time.sleep(EXPERIMENT_LEADOUT_TIME_MS / 1000.0)
 
-    for i in range(10):
-        time.sleep(0.1)
-        R1.stopScan()
+    ######## End of motion commands   ########
+
+    #raw_input("Start scan?")
+    #R1.VERBOSE = False
+    #R1.startScan()
+    #time.sleep(.5)
+    #thread.start_new_thread(skinvisualizer4.main, ())
+    #while raw_input("record for 5 seconds") == "y":
+    #R1.RECORDSHELL = True
+    #time.sleep(EXPERIMENT_RUN_TIME_MS)
+    #R1.RECORDSHELL = False
+    #R1.stopRun()
+    #time.sleep(.1)
+    #R1.stopRun()
+    #time.sleep(.1)
+    #raw_input()
+    #R1.stopScan()
+    #time.sleep(.1)
+    #R1.stopScan()
+    #time.sleep(.1)
+    #R1.stopScan()
+
+    #time.sleep(10)
+    #R1.RECORDSHELL = False
+
+    # Sleep for a lead-out time after any motion
+    time.sleep(EXPERIMENT_LEADOUT_TIME_MS / 1000.0) 
+    #raw_input()
+    R1.stopScan()
+    time.sleep(0.1)
+    R1.stopScan()
+    time.sleep(0.1)
+    R1.stopScan()
+    time.sleep(0.1)
+    #R1.RECORDSHELL = False
     
     for r in shared.ROBOTS:
         if r.SAVE_DATA:

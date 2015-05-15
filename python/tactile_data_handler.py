@@ -79,8 +79,9 @@ def handlePacket(src_addr, data):
                 N = r.N
         temp = map(ord, data)
         temp = np.uint8(temp)
-        timeStamp = temp[-4]+temp[-3]*256+temp[-2]*256*256+temp[-1]*256*256*256
-        print "time =",timeStamp/1000000.0,"frequency =",(1000000.0/(timeStamp-shared.prevStamp))
+        timeStamp = (temp[-4]+temp[-3]*256+temp[-2]*256*256+temp[-1]*256*256*256)/1000000.0
+        freq = 1.0/(timeStamp-shared.prevStamp)
+        print "time =",timeStamp,"frequency =",freq
         shared.prevStamp = timeStamp
         temp = temp[:-4]
         frame = temp[2:-1:2] + (temp[3::2]*256)
@@ -96,29 +97,34 @@ def handlePacket(src_addr, data):
             frame[6],np.power(frame[6],2),np.power(frame[6],3),
             frame[7],np.power(frame[7],2),np.power(frame[7],3)])
         F = A.dot(N)
+        shared.forces = F
+        #if shared.forces_saved != None:
+        #    F = F-shared.forces_saved
+        #else:
+        #    zero_forces()
         print("Fx:%.4f Fy:%.4f Fz:%.4f Froll:%.4f Fpitch:%.4f Fyaw:%.4f"%(F[0],F[1],F[2],F[3],F[4],F[5]))
-
-        return
+        contact_location(F[0],F[1],F[5])
+        #return
 
         # normalization
-        newframe = np.zeros(ROWS*COLS)
-        for i in range(ROWS*COLS):
+        newframe = np.zeros(ROWS*COLS/2)
+        for i in range(ROWS*COLS/2):
             if frame[i] < mins[i]:
                 mins[i] = frame[i]
             elif frame[i] > maxes[i]:
                 maxes[i] = frame[i]
             newframe[i] = (frame[i] - mins[i]) / (maxes[i] - mins[i])
         
-        print("    %4.f      :    :      %4.f    " % (frame[11],frame[6]))
-        print("%4.f    %4.f  :    :  %4.f    %4.f" % (frame[9],frame[13],frame[4],frame[0]))
-        print("    %4.f      :    :      %4.f    " % (frame[15],frame[2]))
+        print("    %4.f      :    :      %4.f    " % (frame[5],frame[3]))
+        print("%4.f    %4.f  :    :  %4.f    %4.f" % (frame[4],frame[6],frame[2],frame[0]))
+        print("    %4.f      :    :      %4.f    " % (frame[7],frame[1]))
         print
-        print("    %.2f      :    :      %.2f    " % (newframe[11],newframe[6]))
-        print("%.2f    %.2f  :    :  %.2f    %.2f" % (newframe[9],newframe[13],newframe[4],newframe[0]))
-        print("    %.2f      :    :      %.2f    " % (newframe[15],newframe[2]))
+        print("    %.2f      :    :      %.2f    " % (newframe[5],newframe[3]))
+        print("%.2f    %.2f  :    :  %.2f    %.2f" % (newframe[4],newframe[6],newframe[2],newframe[0]))
+        print("    %.2f      :    :      %.2f    " % (newframe[7],newframe[1]))
         
-        shared.zvals = [newframe[0],newframe[2],newframe[4],newframe[6],newframe[9],newframe[11],newframe[13],newframe[15]]
-        
+        shared.zvals = newframe #[newframe[0],newframe[2],newframe[4],newframe[6],newframe[9],newframe[11],newframe[13],newframe[15]]
+
         np.set_printoptions(precision=3,suppress=True)
         
         '''
@@ -169,13 +175,13 @@ def handlePacket(src_addr, data):
         '''
 
         dist1 = 1.0/((frame[0]+594.68)/7276.3)
-        dist2 = 1.0/((frame[2]+868.71)/9058.7)
-        dist3 = 1.0/((frame[4]+1000.2)/9529.5)
-        dist4 = 1.0/((frame[6]+941.52)/10029.0)
-        dist5 = 1.0/((frame[9]+1038.9)/9763.0)
-        dist6 = 1.0/((frame[11]+1078.5)/9985.2)
-        dist7 = 1.0/((frame[13]+774.43)/8176.5)
-        dist8 = 1.0/((frame[15]+1062.4)/10272.0)
+        dist2 = 1.0/((frame[1]+868.71)/9058.7)
+        dist3 = 1.0/((frame[2]+1000.2)/9529.5)
+        dist4 = 1.0/((frame[3]+941.52)/10029.0)
+        dist5 = 1.0/((frame[4]+1038.9)/9763.0)
+        dist6 = 1.0/((frame[5]+1078.5)/9985.2)
+        dist7 = 1.0/((frame[6]+774.43)/8176.5)
+        dist8 = 1.0/((frame[7]+1062.4)/10272.0)
         #print
         #print("    %.3f     :    :     %.3f    " % (dist6,dist4))
         #print("%.3f    %.3f:    :%.3f    %.3f" % (dist5,dist7,dist3,dist1))
@@ -230,9 +236,10 @@ def handlePacket(src_addr, data):
         for r in shared.ROBOTS:
             if r.DEST_ADDR_int == src_addr and r.RECORDSHELL:
                 timenow = '%.6f' % time.time()
-                dump_data = np.array([frame[0],frame[2],frame[4],frame[6],frame[9],frame[11],frame[13],frame[15],xyzrpy[0],xyzrpy[1],xyzrpy[2],xyzrpy[3],xyzrpy[4],xyzrpy[5]])
+                #dump_data = np.array([frame[0],frame[2],frame[4],frame[6],frame[9],frame[11],frame[13],frame[15],xyzrpy[0],xyzrpy[1],xyzrpy[2],xyzrpy[3],xyzrpy[4],xyzrpy[5]])
+                dump_data = frame
                 #myCsvRow = timenow
-                myCsvRow = str(timeStamp)
+                myCsvRow = str(timeStamp) + "," + str(freq)
                 for i in range(len(dump_data)):
                     myCsvRow = myCsvRow + "," + str(dump_data[i])
                 myCsvRow = myCsvRow + "\n"
@@ -241,5 +248,43 @@ def handlePacket(src_addr, data):
                 #np.savetxt(fd , dump_data, '%f',delimiter = ',')
                 fd.write(myCsvRow)
                 fd.close()
+        print "finished"
+
+def zero_forces():
+    shared.forces_saved = shared.forces
+
+def contact_location(Fx,Fy,Mz):
+    Mz = Mz/1000.0 #convert millinewton-meter to newton-meter
+    if np.abs(Fx) < 0.08 and np.abs(Fy) < 0.08:
+        x = 0
+        y = 0
+    else:
+        r = -3.0/100.0
+        n = -r/.01
+        if Fy < 0 or (Fy == 0 and ((Fx > 0 and Mz < 0) or (Fx < 0 and Mz > 0))):
+            n = -n
+            r = -r
+        a = n*Fx
+        b = -Fy
+        c = r*Fx+Mz
+        if Fx == 0:
+            x = -Mz/b
+        else:
+            x = (-b+np.sqrt(np.power(b,2)-4.0*a*c))/(2.0*a)
+            if Fx*x > 0:
+                x = (-b-np.sqrt(np.power(b,2)-4.0*a*c))/(2.0*a)
+        y = n*np.power(x,2)+r
+    print "x =",x*100," y =",y*100
+    if x < 0:
+        if y < 0:
+            print "back right"
+        else:
+            print "back left"
+    else:
+        if y < 0:
+            print "front right"
+        else:
+            print "front left"
+
 
 

@@ -33,15 +33,17 @@ static unsigned char rxflag = 0;
 static unsigned int tactile_src_addr = 0;
 static unsigned int exp_len_loc = 1;
 static tactileFrame_t fullFrame;
-static tactileForces forces;
 static char streaming = 0;
 static float N[6][3*ROWS*COLS];
 static DfmemGeometryStruct mem_geo;
+static unsigned int zeroForces = 0;
+static FORCEUNION forces;
+static FORCEUNION forceOffsets;
 
 //Initialize UART module and query skinproc tactile grid size
 void tactileInit() {
-    unsigned char data[2] = {0};
-    radioSendData(0x3001, 0, CMD_TACTILE, 2, data, 0);
+    //unsigned char data[2] = {0};
+    //radioSendData(0x3001, 0, CMD_TACTILE, 2, data, 0);
     if (TACTILEUART){
         /// UART2 for SkinProc, 1e5 Baud, 8bit, No parity, 1 stop bit
         unsigned int U2MODEvalue, U2STAvalue, U2BRGvalue;
@@ -77,13 +79,7 @@ void tactileInit() {
     clearRXFlag();
     //checkFrameSize();
     max_buffer_length = LARGE_BUFFER;
-    
-    forces.F[0] = &forces.Fx;
-    forces.F[1] = &forces.Fy;
-    forces.F[2] = &forces.Fz;
-    forces.F[3] = &forces.Mx;
-    forces.F[4] = &forces.My;
-    forces.F[5] = &forces.Mz;
+
 }
 
 //Query skinproc for size of frame
@@ -223,8 +219,8 @@ void handleSkinRequest(unsigned char length, unsigned char *frame, unsigned int 
 
             break;
 
-        case 'Z': //read N from dfmem
-            /*
+        case 'Z': 
+            /*//read N from dfmem
             dfmemGetGeometryParams(&mem_geo);
             int N_pages1 = (sizeof(N)/mem_geo.bytes_per_page) + 1; //how many pages needed to hold N
             //for (i = N_pages1; i > 0; i--) {
@@ -232,10 +228,15 @@ void handleSkinRequest(unsigned char length, unsigned char *frame, unsigned int 
             //}
             dfmemRead(mem_geo.max_pages-1, 0, sizeof(N), N);
             */
-            DisableIntT1;
             rx_idx = TACTILE_RX_IDLE;
+            /*DisableIntT1;
             int pwm = frame[1]+(frame[2]<<8);
-            tiHSetDC(1,pwm);
+            tiHSetDC(1,pwm);*/
+            
+            //zero forces
+            if (zeroForces == 0) {
+                zeroForces = 1;
+            }
             
             break;
         default:
@@ -282,16 +283,20 @@ void checkTactileBuffer(){
     if (checkRXFlag()) {
 
         if (streaming || rx_idx != TACTILE_MODE_E) {
+            if (rx_idx == TACTILE_MODE_E) {
+                Nop();
+                Nop();
+            }
             handleSkinData(buffer_length, fullbuffer);
         }
 
         if (rx_idx == TACTILE_MODE_B || rx_idx == TACTILE_MODE_E) {
             int i = 0;
-            for (i = 0; i < fullbuffer[1]-4; i++) {
+            for (i = 0; i < (fullbuffer[1]-4)/2; i++) {
                 fullFrame.frame[i] = ((unsigned int)(fullbuffer[i*2+2])) + (((unsigned int)(fullbuffer[i*2+3]))<<8);
             }
-            calcForces(&fullFrame, &forces);
-            tactilePID(&forces);
+            //calcForces(&fullFrame, &forces);
+            //tactilePID(&forces);
 
             if (0) {
                 //send back force data here
@@ -300,7 +305,7 @@ void checkTactileBuffer(){
                 forcedata[1] = 6*sizeof(float);
 
                 for (i=0; i < 6; i++) {
-                    memcpy(&forcedata[2+i*sizeof(float)],forces.F[i],sizeof(float));
+                    memcpy(&forcedata[2+i*sizeof(float)],&forces.F[i],sizeof(float));
                 }
                 handleSkinData(sizeof(forcedata), forcedata);
             }
@@ -322,7 +327,7 @@ void checkTactileBuffer(){
     }
 }
 
-void calcForces(tactileFrame_t* sensor, tactileForces* forces){
+void calcForces(tactileFrame_t* sensor, FORCEUNION* forces){
 
     Nop();
     int i,j;
@@ -335,24 +340,24 @@ void calcForces(tactileFrame_t* sensor, tactileForces* forces){
     }
     
     for (j = 0; j < 6; j++) {
-        *forces->F[j] = 0;
+        forces->F[j] = 0;
         for (i = 0; i < 3*ROWS*COLS; i++) {
-            *forces->F[j] += A[i]*N[j][i];
+            forces->F[j] += A[i]*N[j][i];
         }
     }
     Nop();
 }
 
-void tactilePID(tactileForces* F) {
+void tactilePID(FORCEUNION* forces) {
     Nop();
     float FxThreshForward = 0.6;
     float FxThreshBack = -0.6;
     int freq[2];
-    if (F->Fx < FxThreshBack) {
+    if (forces->forces.Fx < FxThreshBack) {
         freq[0] = -1000;
         freq[1] = -1000;
         setLegFreqs(2,freq);
-    } else if (F->Fx > FxThreshForward) {
+    } else if (forces->forces.Fx > FxThreshForward) {
         freq[0] = 1000;
         freq[1] = 1000;
         setLegFreqs(2,freq);

@@ -36,7 +36,7 @@
 #define LARGE_BUFFER            110
 
 typedef struct {
-    uint16_t frame[ROWS*COLS];
+    unsigned int frame[ROWS*COLS];
 } tactileFrame_t;
 
 typedef struct {
@@ -46,8 +46,14 @@ typedef struct {
     float Mx;
     float My;
     float Mz;
-    float *F[6];
+    //float *F[6];
 } tactileForces;
+
+
+typedef union forceUnion{
+    tactileForces forces;
+    float F[6];
+} FORCEUNION;
 
 void tactileInit();
 void checkFrameSize();
@@ -60,8 +66,8 @@ unsigned char checkRXFlag();
 void checkTactileBuffer();
 void sendCTS();
 int tactileReturnFrame(tactileFrame_t* dst);
-void calcForces(tactileFrame_t* frame, tactileForces* F);
-void tactilePID(tactileForces* F);
+void calcForces(tactileFrame_t* frame, FORCEUNION* forceU);
+void tactilePID(FORCEUNION* forceU);
 int setLegFreqs(int numfreqs, int* freq);
 
 //#ifdef	__cplusplus

@@ -55,7 +55,7 @@ def main():
     motorgains = [1800,100,200,0,0, 1800,100,200,0,0]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
-    simpleAltTripod = GaitConfig(motorgains, rightFreq=1, leftFreq=1) # Parameters can be passed into object upon construction, as done here.
+    simpleAltTripod = GaitConfig(motorgains, rightFreq=5, leftFreq=5) # Parameters can be passed into object upon construction, as done here.
     simpleAltTripod.phase = PHASE_180_DEG                             # Or set individually, as here
     simpleAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     simpleAltTripod.deltasRight = [0.25, 0.25, 0.25]
@@ -65,7 +65,7 @@ def main():
     R1.setGait(simpleAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 30000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 5000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 100  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
     
@@ -97,7 +97,7 @@ def main():
     #R1.testFrame()
     time.sleep(.5)
     #R1.startScan()
-    R1.loadTactileForceCal(True,'/Users/jgoldberg/Dropbox/Research/N_matrix_trial5.mat')
+    R1.loadTactileForceCal(False,'/Users/jgoldberg/Dropbox/Research/N_matrix_trial9.mat')
     time.sleep(.5)
     #raw_input("send y")
     #R1.sendY(10)
@@ -131,9 +131,7 @@ def main():
         print
         print "Sampling frame with period "+str(testper)+"ms for "+str(testdur)+"s"
         time.sleep(1)
-        print int(1000.0*testdur/testper)
         for i in range(int(1000.0*testdur/testper)):
-            print "sample"
             R1.sampleFrame(period)
             time.sleep(testper/1000.0)    
 
@@ -141,20 +139,35 @@ def main():
         print "===End tactile unit test==="
         return
 
-    '''
+    period = 500
+    while False:
+        R1.sampleFrame(period)
+        time.sleep(.25)
+
+    
+    R1.skinStream(1)
+    #time.sleep(0.1)
+    #R1.startScan()
+    #raw_input()
+    #R1.RECORDSHELL = True
+    #time.sleep(1)
+    #thread.start_new_thread(skinvisualizer4.main, ())
+    #time.sleep(3)
+    #raw_input()
+    R1.RECORDSHELL = False
+    #for i in range(10):
+    #    R1.stopScan()
+    #    time.sleep(.1)
+    #raw_input()
+    #return
+    
     R1.startScan()
-    raw_input()
-    R1.stopScan()
-    raw_input()
-    R1.stopScan()
-    raw_input()
-    '''
-    r.startScan()
     #raw_input()
     # Initiate telemetry recording; the robot will begin recording immediately when cmd is received.
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             r.startTelemetrySave()
+            r.RECORDSHELL = False
 
     
     # Sleep for a lead-in time before any motion commands
@@ -162,33 +175,47 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     #raw_input()
     ######## Motion is initiated here! ########
-    R1.startRun()
-    raw_input()
-    R1.stopRun()
-    #R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
-    '''while True:
+    #R1.startRun()
+    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
+    #raw_input("enter to stop")
+    #R1.stopRun()
+    #time.sleep(0.1)
+    #R1.stopScan()
+    #time.sleep(0.1)
+    #R1.stopScan()
+    #time.sleep(0.1)
+    #R1.stopScan()
+    #time.sleep(0.1)
+    #R1.setGait(simpleAltTripod)
+    #raw_input("enter to start")
+    #R1.startRun()
+    while False:
+        print "\"s\" to stop"
         tempL = raw_input("enter freq LEFT:")
         tempR = raw_input("enter freq RIGHT:")
+        if tempL == "s" or tempR == "s":
+            R1.stopRun()
+            return
+        if tempL != "" and tempR != "":
+            R1.sendY(float(tempL),float(tempR))
+    
 
-        R1.sendY(float(tempL),float(tempR))
-    '''
-
-    '''
+    
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0 / 2.0)  #argument to time.sleep is in SECONDS
     #R1.startRun()
     #raw_input("hit enter")
     #R1.stopRun()
 
-    simpleAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2) # Parameters can be passed into object upon construction, as done here.
-    simpleAltTripod.phase = PHASE_180_DEG                             # Or set individually, as here
-    simpleAltTripod.deltasLeft = [-0.25, -0.25, -0.25]
-    simpleAltTripod.deltasRight = [-0.25, -0.25, -0.25]
+    #simpleAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2) # Parameters can be passed into object upon construction, as done here.
+    #simpleAltTripod.phase = PHASE_180_DEG                             # Or set individually, as here
+    #simpleAltTripod.deltasLeft = [-0.25, -0.25, -0.25]
+    #simpleAltTripod.deltasRight = [-0.25, -0.25, -0.25]
     #simpleAltTripod.deltasTime  = [0.25, 0.25, 0.25] # Not current supported by firmware; time deltas are always exactly [0.25, 0.25, 0.25, 0.25]
     
     # Configure intra-stride control
-    R1.setVelProfile(simpleAltTripod)
-    time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0 / 2.0)  #argument to time.sleep is in SECONDS
-    '''
+    #R1.setVelProfile(simpleAltTripod)
+    #time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0 / 2.0)  #argument to time.sleep is in SECONDS
+    
     
     #time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########
@@ -207,8 +234,9 @@ def main():
     #R1.stopRun()
     #time.sleep(.1)
     #raw_input()
-    #R1.stopScan()
-    #time.sleep(.1)
+    while raw_input() == "":
+        R1.stopScan()
+        time.sleep(.1)
     #R1.stopScan()
     #time.sleep(.1)
     #R1.stopScan()
@@ -216,13 +244,13 @@ def main():
     # Sleep for a lead-out time after any motion
     time.sleep(EXPERIMENT_LEADOUT_TIME_MS / 1000.0) 
     #raw_input()
-    R1.stopScan()
-    time.sleep(0.1)
-    R1.stopScan()
-    time.sleep(0.1)
-    R1.stopScan()
-    time.sleep(0.1)
-    R1.RECORDSHELL = False
+    #R1.stopScan()
+    #time.sleep(0.1)
+    #R1.stopScan()
+    #time.sleep(0.1)
+    #R1.stopScan()
+    #time.sleep(0.1)
+    #R1.RECORDSHELL = False
     
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
