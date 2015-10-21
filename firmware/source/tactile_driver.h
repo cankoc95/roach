@@ -30,6 +30,10 @@
 #define TACTILE_MODE_T           0x54
 #define CTS                      0x5A //'Z'
 
+//--Can Koc--
+//#define TACTILE_ROWS             0xFF;
+//#define TACTILE_COLS             0xFF;
+//static float N[][3*0xFF*0xFF];
 
 // buffer lengths
 #define SMALL_BUFFER            3
@@ -69,6 +73,7 @@ int tactileReturnFrame(tactileFrame_t* dst);
 void calcForces(tactileFrame_t* frame, FORCEUNION* forceU);
 void tactilePID(FORCEUNION* forceU);
 int setLegFreqs(int numfreqs, int* freq);
+
 
 //#ifdef	__cplusplus
 //extern "C" {

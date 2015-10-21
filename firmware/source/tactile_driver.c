@@ -19,6 +19,7 @@
 	#define U1BRGH  		1
 #endif
 
+
 static unsigned char tx_idx; //tx mode (to radio)
 static unsigned char rx_idx; //rx mode (from radio)
 static unsigned char TACTILE_ROWS; //number of rows in tactile grid
@@ -34,7 +35,8 @@ static unsigned int tactile_src_addr = 0;
 static unsigned int exp_len_loc = 1;
 static tactileFrame_t fullFrame;
 static char streaming = 0;
-static float N[6][3*ROWS*COLS];
+static float **N;
+//static float N[6][3*0xFF*0xFF];
 static DfmemGeometryStruct mem_geo;
 static unsigned int zeroForces = 0;
 static FORCEUNION forces;
@@ -76,6 +78,11 @@ void tactileInit() {
     rx_count = 0;
     TACTILE_ROWS = 0xFF;
     TACTILE_COLS = 0xFF;
+    N = (float**)malloc(sizeof(float*) * 6);
+    int i;
+    for (i = 0; i < 6; i++) {
+        N[i] = (float*)malloc(sizeof(float) * 3 * TACTILE_ROWS * TACTILE_COLS);
+    }
     clearRXFlag();
     //checkFrameSize();
     max_buffer_length = LARGE_BUFFER;
@@ -317,9 +324,9 @@ void calcForces(tactileFrame_t* sensor, FORCEUNION* forces){
 
     Nop();
     int i,j;
-    float A[3*ROWS*COLS];
+    float A[3*TACTILE_ROWS*TACTILE_COLS];
 
-    for (i = 0; i < ROWS*COLS; i++) {
+    for (i = 0; i < TACTILE_ROWS*TACTILE_COLS; i++) {
         A[i*3] = (float) sensor->frame[i];
         A[i*3+1] = A[i*3]*A[i*3];
         A[i*3+2] = A[i*3+1]*A[i*3];
@@ -327,7 +334,7 @@ void calcForces(tactileFrame_t* sensor, FORCEUNION* forces){
     
     for (j = 0; j < 6; j++) {
         forces->F[j] = 0;
-        for (i = 0; i < 3*ROWS*COLS; i++) {
+        for (i = 0; i < 3*TACTILE_ROWS*TACTILE_COLS; i++) {
             forces->F[j] += A[i]*N[j][i];
         }
     }
@@ -370,7 +377,7 @@ void sendCTS(){
 
 int tactileReturnFrame(tactileFrame_t* dst){
     if (dst != NULL) {
-        memcpy(dst->frame, fullFrame.frame, ROWS*COLS*sizeof(unsigned int));
+        memcpy(dst->frame, fullFrame.frame, TACTILE_ROWS*TACTILE_COLS*sizeof(unsigned int));
         return 0;
     } else {
         return 1;
